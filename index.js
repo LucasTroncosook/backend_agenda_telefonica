@@ -14,6 +14,16 @@ app.use(morgan(':method :url :status :res[content-length] - :response-time ms :b
 
 const date = new Date;
 
+const errorHandler = (error, request, response, next) => {
+    console.error(error.message)
+    
+    if(error.name === "ValidationError"){
+        return response.status(400).json({error: error.message})
+    }
+
+    next(error)
+}
+
 app.get('/api/persons', (request, response) => {
     Person.find({}).then(persons => {
         response.json(persons)
@@ -34,23 +44,19 @@ app.get('/api/persons/:id', (request, response) => {
     })
 })
 
-app.post('/api/persons', (request, response) => {
+app.post('/api/persons', (request, response, next) => {
     const body = request.body;
-
-    if(!body.name || !body.number){
-        return response.status(400).json({
-            error: "name or number missing"
-        })
-    }
-
+    
     const person = new Person({
         name: body.name,
         number: body.number
     })
 
-    person.save().then(savePerson => {
+    person.save()
+    .then(savePerson => {
         response.json(savePerson)
     })
+    .catch(error => next(error))
 })
 
 app.put('/api/persons/:id', (request, response, next) => {
@@ -75,6 +81,8 @@ app.delete('/api/persons/:id', (request, response, next) => {
     })
     .catch(error => next(error))
 })
+
+app.use(errorHandler)
 
 const PORT = process.env.PORT
 app.listen(PORT, () => {
